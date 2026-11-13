@@ -41,3 +41,27 @@ This project should demonstrate:
 2. Add project code scaffold (API/app) in a follow-up PR
 3. Integrate Exa API calls and source rendering early
 4. Add scenario-based tests once runtime code is introduced
+
+## Setup and run
+
+Requirements: Python 3.11+, Node.js/npm, and `uv` (recommended). Copy `.env.example` to `.env` and add API keys to enable live integrations; the claim endpoint uses stub data when Exa credentials are absent.
+
+Backend:
+
+```powershell
+cd backend
+uv sync
+uv run uvicorn app.main:app --reload
+```
+
+Run backend tests with `cd backend; uv run pytest`. If `uv` is unavailable, create a local virtual environment and install with `pip install -e ".[dev]"`.
+
+Frontend (in a second terminal):
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend defaults to `http://localhost:8000` for the backend; set `VITE_API_URL` to override it. Build with `cd frontend; npm run build`.
