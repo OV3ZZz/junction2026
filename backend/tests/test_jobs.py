@@ -83,5 +83,22 @@ def test_search_tops_up_from_plain_results(live: None, monkeypatch: pytest.Monke
     assert [job.url for job in found] == ["https://a.fi/1", "https://b.fi/2"]
 
 
+def test_repeat_search_uses_cache(live: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    def fake_search(query: str, *args: object) -> SimpleNamespace:
+        calls.append(query)
+        return _deep_response([{"title": "A", "url": "https://a.fi/1"}], ["https://a.fi/1"])
+
+    monkeypatch.setattr(exa_client, "deep_search", fake_search)
+
+    first = jobs.search_jobs("Tampere", "toive", [])
+    second = jobs.search_jobs("Tampere", "toive", exclude_urls=["https://a.fi/1"])
+
+    assert len(calls) == 1
+    assert [job.url for job in first] == ["https://a.fi/1"]
+    assert second == []
+
+
 def test_stub_without_key() -> None:
     assert jobs.search_jobs("", "mitä tahansa", [])[0].url.startswith("https://example.com")

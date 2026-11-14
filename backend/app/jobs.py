@@ -4,7 +4,7 @@ import json
 from datetime import date
 from typing import Any
 
-from . import exa_client
+from . import cache, exa_client
 from .config import get_exa_key
 from .schemas import Job
 
@@ -73,12 +73,30 @@ def search_jobs(
     """Return fresh job ads for the wish, skipping ads the user has already seen."""
     if not get_exa_key():
         return [job.model_copy() for job in STUB_JOBS]
-    response = exa_client.deep_search(
-        build_query(area, wish, feedback), system_prompt(), JOB_SCHEMA
-    )
+    structured, extra = _candidates(build_query(area, wish, feedback))
+    skip = set(exclude_urls)
+    found = [job for job in structured if job.url not in skip]
+    if len(found) < MIN_JOBS:
+        # Deep search output sometimes lists only a few jobs; fill up from the raw results.
+        found += [job for job in extra if job.url not in skip]
+    return found[:MAX_JOBS]
+
+
+def _candidates(query: str) -> tuple[list[Job], list[Job]]:
+    """Structured jobs and plain-result fallbacks for a query, cached for repeat searches."""
+    cached = cache.get(query)
+    if cached is not None:
+        return cached
+    response = exa_client.deep_search(query, system_prompt(), JOB_SCHEMA)
     allowed = {result.url for result in response.results}
-    found = _valid_jobs(_output_jobs(response), allowed, set(exclude_urls))
-    return _top_up(found, response.results, set(exclude_urls))
+    structured = _valid_jobs(_output_jobs(response), allowed)
+    taken = {job.url for job in structured}
+    extra = [
+        _result_to_job(result) for result in response.results
+        if result.url not in taken and not any(part in result.url for part in NOT_JOB_ADS)
+    ]
+    cache.put(query, (structured, extra))
+    return structured, extra
 
 
 def similar_jobs(area: str, wish: str, liked: Job, exclude_urls: list[str]) -> list[Job]:
@@ -100,13 +118,13 @@ def _output_jobs(response: Any) -> list[dict[str, Any]]:
     return [item for item in content.get("jobs", []) if isinstance(item, dict)]
 
 
-def _valid_jobs(items: list[dict[str, Any]], allowed: set[str], skip: set[str]) -> list[Job]:
-    """Keep jobs whose URL is a real Exa result and not already seen; drop duplicates."""
+def _valid_jobs(items: list[dict[str, Any]], allowed: set[str]) -> list[Job]:
+    """Keep jobs whose URL is a real Exa result; drop duplicates."""
     jobs: list[Job] = []
     seen: set[str] = set()
     for item in items:
         url = item.get("url") or ""
-        if url not in allowed or url in skip or url in seen or not item.get("title"):
+        if url not in allowed or url in seen or not item.get("title"):
             continue
         seen.add(url)
         jobs.append(
@@ -120,19 +138,7 @@ def _valid_jobs(items: list[dict[str, Any]], allowed: set[str], skip: set[str]) 
                 why=item.get("why") or None,
             )
         )
-    return jobs[:MAX_JOBS]
-
-
-def _top_up(jobs: list[Job], results: list[Any], skip: set[str]) -> list[Job]:
-    """Deep search output sometimes lists only a few jobs; fill up from the raw Exa results."""
-    if len(jobs) >= MIN_JOBS:
-        return jobs
-    taken = {job.url for job in jobs} | skip
-    extra = [
-        _result_to_job(result) for result in results
-        if result.url not in taken and not any(part in result.url for part in NOT_JOB_ADS)
-    ]
-    return (jobs + extra)[:MAX_JOBS]
+    return jobs
 
 
 def _result_to_job(result: Any) -> Job:

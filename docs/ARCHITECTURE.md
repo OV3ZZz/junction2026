@@ -21,6 +21,8 @@ flowchart LR
 - Rejecting a batch with feedback ("too far away") sends the feedback with the next search.
 - Saved ads live in the browser's `localStorage`; there is no database.
 - Without `EXA_API_KEY` the backend returns a stub ad so the app still runs.
+- Identical searches are cached in memory for an hour; a global hourly limit protects Exa credits.
+- Hosting: one Docker container on Render serves the built frontend and the API from the same origin.
 
 ## Why Exa deep search directly
 

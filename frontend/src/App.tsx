@@ -12,7 +12,8 @@ type Job = {
 };
 type JobSearchResponse = { jobs: Job[] };
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+// Dev talks to the local backend; the production build calls the same origin that served it.
+const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
 const PAGE_SIZE = 3;
 const SAVED_KEY = "saved-jobs";
 

@@ -14,6 +14,7 @@ Frontend (Vite, React, TypeScript) -> FastAPI backend -> Exa deep search with an
 - Backend tests: `cd backend; uv run pytest`
 - Lint: `cd backend; uv run ruff check .` and `cd frontend; npm run lint`
 - Frontend production build: `cd frontend; npm run build`
+- Deploy: push the branch; Render builds the root `Dockerfile` (see README)
 
 ## Conventions
 - Add type hints to Python code and keep functions small.
@@ -26,7 +27,7 @@ Frontend (Vite, React, TypeScript) -> FastAPI backend -> Exa deep search with an
 - Job ads and their URLs must come only from Exa results.
 - The app never applies for jobs or contacts employers on the user's behalf.
 - The UI must always tell the user to check details and deadlines from the original ad.
-- No auth, database, or extra frameworks without a project decision. The app runs locally.
+- No auth, database, or extra frameworks without a project decision. The app is hosted on Render as one Docker container (`Dockerfile`, `render.yaml`); keep the search limit and cache in place because the demo link is public.
 
 ## Git workflow
 - Use feature branches and small, clear commits.
