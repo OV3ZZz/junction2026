@@ -1,23 +1,24 @@
 """FastAPI application and transport routes."""
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .agent import handle_claim
 from .config import get_allowed_origins
-from .rate_limit import check_claim_limit
-from .schemas import ClaimRequest, ClaimResponse
+from .jobs import search_jobs, similar_jobs
+from .rate_limit import check_search_limit
+from .schemas import Job, JobSearchRequest, JobSearchResponse, SimilarJobsRequest
 
 logger = logging.getLogger(__name__)
 
-# In the deployed container the built frontend is copied here and served from the same origin.
+# In the Docker image the built frontend is copied here and served from the same origin.
 STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
 
-app = FastAPI(title="Reklama API")
+app = FastAPI(title="Job search API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_allowed_origins(),
@@ -33,17 +34,31 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/claim", response_model=ClaimResponse, dependencies=[Depends(check_claim_limit)])
-def claim(request: ClaimRequest) -> ClaimResponse:
-    """Analyze a consumer claim and return a draft for the user to review."""
+@app.post("/jobs/search", response_model=JobSearchResponse,
+          dependencies=[Depends(check_search_limit)])
+def jobs_search(request: JobSearchRequest) -> JobSearchResponse:
+    """Find fresh job ads that match the user's area and free-form wish."""
+    return _respond(lambda: search_jobs(
+        request.area, request.wish, request.exclude_urls, request.feedback))
+
+
+@app.post("/jobs/similar", response_model=JobSearchResponse,
+          dependencies=[Depends(check_search_limit)])
+def jobs_similar(request: SimilarJobsRequest) -> JobSearchResponse:
+    """Find ads similar to one the user liked."""
+    return _respond(lambda: similar_jobs(
+        request.area, request.wish, request.job, request.exclude_urls))
+
+
+def _respond(find: Callable[[], list[Job]]) -> JobSearchResponse:
+    # Raising HTTPException keeps CORS headers, so the browser shows this message
+    # instead of a generic "Failed to fetch".
     try:
-        return handle_claim(request.description)
+        return JobSearchResponse(jobs=find())
     except Exception as error:
-        # Raising HTTPException keeps CORS headers, so the browser shows this message
-        # instead of a generic "Failed to fetch".
-        logger.exception("Claim handling failed")
+        logger.exception("Job search failed")
         raise HTTPException(
-            status_code=502, detail="Selvitys epäonnistui. Yritä hetken päästä uudelleen."
+            status_code=502, detail="Haku epäonnistui. Yritä hetken päästä uudelleen."
         ) from error
 
 

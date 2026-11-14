@@ -1,52 +1,80 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
-type Source = { title: string; url: string; quote?: string | null };
-type ClaimResponse = { answer: string; sources: Source[]; draft_letter: string };
+// Mirrors backend/app/schemas.py
+type Job = {
+  title: string;
+  employer?: string | null;
+  location?: string | null;
+  url: string;
+  deadline?: string | null;
+  summary: string;
+  why?: string | null;
+};
+type JobSearchResponse = { jobs: Job[] };
 
-// Dev talks to the local backend; a production build calls the same origin that served it.
+// Dev talks to the local backend; the production build calls the same origin that served it.
 const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
+const PAGE_SIZE = 3;
+const SAVED_KEY = "saved-jobs";
+
 const EXAMPLES = [
-  {
-    label: "Myöhästynyt lento",
-    text: "Lentoni saapui määränpäähän neljä tuntia myöhässä. Lentoyhtiö ei ole vastannut korvauspyyntööni.",
-  },
-  {
-    label: "Viallinen tuote",
-    text: "Ostin kuulokkeet kaksi kuukautta sitten, ja niiden vasen kuuloke lakkasi toimimasta. Myyjä ei suostu korjaamaan tuotetta.",
-  },
-  {
-    label: "Virheellinen lasku",
-    text: "Sain laskun palvelusta, jonka olen jo irtisanonut. Yritys ei ole korjannut laskua yhteydenotostani huolimatta.",
-  },
+  { label: "Excel ja ihmiset", area: "Tampere tai etä", wish: "Olen hyvä Excelissä ja tulen toimeen ihmisten kanssa, mutta en halua myyntityötä." },
+  { label: "Junior-koodari", area: "Helsinki", wish: "Vastavalmistunut ohjelmistokehittäjä, Python ja React, haluan junioripaikan." },
+  { label: "Pois vuorotyöstä", area: "Turku", wish: "Sairaanhoitaja, haluan pois vuorotyöstä. Päivätyö kelpaa vaikka toimistossa." },
 ];
 
+function loadSaved(): Job[] {
+  try {
+    return JSON.parse(localStorage.getItem(SAVED_KEY) ?? "[]") as Job[];
+  } catch {
+    return [];
+  }
+}
+
+async function post(path: string, body: unknown): Promise<Job[]> {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error("Haku epäonnistui. Yritä hetken kuluttua uudelleen.");
+  return ((await response.json()) as JobSearchResponse).jobs;
+}
+
 export default function App() {
-  const [description, setDescription] = useState("");
-  const [result, setResult] = useState<ClaimResponse | null>(null);
-  const [draft, setDraft] = useState("");
+  const [area, setArea] = useState("");
+  const [wish, setWish] = useState("");
+  const [feedback, setFeedback] = useState("");
+  const [shown, setShown] = useState<Job[]>([]);
+  const [queue, setQueue] = useState<Job[]>([]);
+  const [seen, setSeen] = useState<string[]>([]);
+  const [saved, setSaved] = useState<Job[]>(loadSaved);
+  const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [copyStatus, setCopyStatus] = useState("");
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  useEffect(() => {
+    try {
+      localStorage.setItem(SAVED_KEY, JSON.stringify(saved));
+    } catch {
+      /* storage unavailable: saved list lives only in this tab */
+    }
+  }, [saved]);
+
+  function showFrom(jobs: Job[], alreadySeen: string[]) {
+    const fresh = jobs.filter((job) => !alreadySeen.includes(job.url));
+    const page = fresh.slice(0, PAGE_SIZE);
+    setShown(page);
+    setQueue(fresh.slice(PAGE_SIZE));
+    setSeen([...alreadySeen, ...page.map((job) => job.url)]);
+  }
+
+  async function run(load: () => Promise<Job[]>, alreadySeen: string[]) {
     setLoading(true);
     setError("");
-    setResult(null);
-    setDraft("");
-    setCopyStatus("");
-
     try {
-      const response = await fetch(`${API_URL}/claim`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: description.trim() }),
-      });
-      if (!response.ok) throw new Error("Pyyntö epäonnistui. Yritä hetken kuluttua uudelleen.");
-
-      const claim = (await response.json()) as ClaimResponse;
-      setResult(claim);
-      setDraft(claim.draft_letter);
+      showFrom(await load(), alreadySeen);
+      setSearched(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Palvelimeen ei saatu yhteyttä.");
     } finally {
@@ -54,108 +82,124 @@ export default function App() {
     }
   }
 
-  async function copyDraft() {
-    try {
-      await navigator.clipboard.writeText(draft);
-      setCopyStatus("Luonnos kopioitu leikepöydälle.");
-    } catch {
-      setCopyStatus("Kopiointi ei onnistunut. Voit valita ja kopioida tekstin itse.");
-    }
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFeedback("");
+    run(() => post("/jobs/search", { area, wish: wish.trim(), exclude_urls: [] }), []);
   }
 
-  function useExample(text: string) {
-    setDescription(text);
-    setError("");
+  function nextThree() {
+    // Feedback means the user wants a different direction: ask Exa again.
+    if (queue.length > 0 && !feedback.trim()) {
+      showFrom(queue, seen);
+      return;
+    }
+    const note = feedback.trim() || null;
+    setFeedback("");
+    run(() => post("/jobs/search", { area, wish: wish.trim(), exclude_urls: seen, feedback: note }), seen);
   }
+
+  function moreLike(job: Job) {
+    run(() => post("/jobs/similar", { area, wish: wish.trim(), job, exclude_urls: seen }), seen);
+  }
+
+  const isSaved = (job: Job) => saved.some((item) => item.url === job.url);
+  const toggleSave = (job: Job) =>
+    setSaved((items) => (isSaved(job) ? items.filter((item) => item.url !== job.url) : [job, ...items]));
 
   return (
-    <main className="shell" id="top">
+    <div className="shell" id="top">
       <header className="topbar">
-        <a className="wordmark" href="#top" aria-label="Reklama, etusivu">reklama<span>.</span></a>
-        <span className="topnote">KULUTTAJAN PUOLELLA</span>
+        <a className="wordmark" href="#top" aria-label="Etusivu">paikka<span>.</span></a>
+        <span className="topnote">TUORE TYÖPAIKKAHAKU</span>
       </header>
 
-      <section className="hero">
-        <p className="eyebrow">OIKEUTESI, SELVÄKSI</p>
-        <h1>Sinulle kuuluu se,<br />mitä sinulle luvattiin.</h1>
-        <p className="intro">Kerro, mitä tapahtui. Selvitämme, mihin sinulla voi olla oikeus, ja valmistelemme viestin yritykselle.</p>
-      </section>
+      <div className="layout">
+        <main>
+          <section className="hero">
+            <p className="eyebrow">KERRO OMIN SANOIN</p>
+            <h1>Löydä työ, jota et<br />osannut hakea.</h1>
+            <p className="intro">Kuvaile, missä olet hyvä ja millaista työtä haluat. Haemme juuri nyt avoinna olevia ilmoituksia koko verkosta, myös yritysten omilta rekrysivuilta.</p>
+          </section>
 
-      <form className="claim-form" onSubmit={submit}>
-        <div className="form-heading">
-          <label htmlFor="description">Mitä tapahtui?</label>
-          <span className="form-step">01 <span>/ 02</span></span>
-        </div>
-        <textarea
-          id="description"
-          required
-          minLength={1}
-          rows={5}
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          placeholder="Kuvaile tilannetta omin sanoin. Mitä tapahtui ja milloin?"
-          aria-describedby="description-hint"
-        />
-        <div className="examples" aria-label="Esimerkkejä tilanteista">
-          <span className="examples-label">Kokeile esimerkkiä</span>
-          <div className="example-list">
-            {EXAMPLES.map((example) => (
-              <button className="example-chip" key={example.label} type="button" onClick={() => useExample(example.text)}>
-                {example.label}<span aria-hidden="true"> ↗</span>
+          <form className="search-form" onSubmit={submit}>
+            <label htmlFor="area">Alue</label>
+            <input id="area" value={area} onChange={(e) => setArea(e.target.value)} placeholder="Esim. Tampere, Uusimaa tai etä" />
+            <label htmlFor="wish">Mitä toivot työltä?</label>
+            <textarea id="wish" required rows={4} value={wish} onChange={(e) => setWish(e.target.value)}
+              placeholder="Esim. olen hyvä Excelissä ja ihmisten kanssa, en halua myyntityötä." />
+            <div className="examples" aria-label="Esimerkkejä">
+              <span className="examples-label">Kokeile esimerkkiä</span>
+              <div className="example-list">
+                {EXAMPLES.map((example) => (
+                  <button className="example-chip" key={example.label} type="button"
+                    onClick={() => { setArea(example.area); setWish(example.wish); }}>
+                    {example.label}<span aria-hidden="true"> ↗</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="form-footer">
+              <span>Älä kirjoita henkilötietoja.</span>
+              <button className="primary-button" type="submit" disabled={loading || !wish.trim()}>
+                {loading ? <><span className="spinner" aria-hidden="true" /> Haetaan…</> : <>Hae työpaikkoja <span aria-hidden="true">↗</span></>}
               </button>
+            </div>
+          </form>
+
+          {error && <p className="error" role="alert">{error}</p>}
+          {loading && <p className="loading-note" role="status">Exa käy läpi tuoreita ilmoituksia. Tämä kestää noin 10–20 sekuntia.</p>}
+
+          {searched && !loading && (
+            <section className="results" aria-live="polite">
+              <p className="eyebrow">EHDOTUKSET</p>
+              {shown.length === 0 && <p className="empty">Uusia ilmoituksia ei löytynyt. Kokeile väljempää toivetta tai toista aluetta.</p>}
+              {shown.map((job) => (
+                <article className="job-card" key={job.url}>
+                  <div className="job-head">
+                    <div>
+                      <h2><a href={job.url} target="_blank" rel="noreferrer">{job.title}<span aria-hidden="true"> ↗</span></a></h2>
+                      <p className="job-meta">{[job.employer, job.location].filter(Boolean).join(" · ")}</p>
+                    </div>
+                    {job.deadline && <span className="deadline">Haku päättyy {job.deadline}</span>}
+                  </div>
+                  {job.summary && <p className="job-summary">{job.summary}</p>}
+                  {job.why && <p className="job-why"><strong>Miksi sinulle:</strong> {job.why}</p>}
+                  <div className="job-actions">
+                    <button className="secondary-button" type="button" onClick={() => toggleSave(job)}>
+                      {isSaved(job) ? "✓ Tallennettu" : "☆ Tallenna"}
+                    </button>
+                    <button className="secondary-button" type="button" onClick={() => moreLike(job)}>Lisää tällaisia</button>
+                  </div>
+                </article>
+              ))}
+              <div className="next-box">
+                <input aria-label="Miksi nämä eivät sopineet?" value={feedback} onChange={(e) => setFeedback(e.target.value)}
+                  placeholder="Miksi nämä eivät sopineet? (vapaaehtoinen, esim. liian kaukana)" />
+                <button className="primary-button" type="button" onClick={nextThree}>Näytä kolme uutta</button>
+              </div>
+            </section>
+          )}
+        </main>
+
+        <aside className="sidebar" aria-label="Tallennetut ilmoitukset">
+          <p className="section-label">TALLENNETUT ({saved.length})</p>
+          {saved.length === 0 && <p className="empty">Tallenna kiinnostavat ilmoitukset tähän.</p>}
+          <ul>
+            {saved.map((job) => (
+              <li key={job.url}>
+                <a href={job.url} target="_blank" rel="noreferrer">{job.title}</a>
+                <span>{[job.employer, job.deadline && `päättyy ${job.deadline}`].filter(Boolean).join(" · ")}</span>
+                <button type="button" aria-label={`Poista ${job.title}`} onClick={() => toggleSave(job)}>×</button>
+              </li>
             ))}
-          </div>
-        </div>
-        <div className="form-footer">
-          <span id="description-hint">Kuvaile omin sanoin, voit jättää henkilötiedot pois.</span>
-          <button className="primary-button" type="submit" disabled={loading || !description.trim()}>
-            {loading ? <><span className="spinner" aria-hidden="true" /> Selvitetään…</> : <>Selvitä oikeuteni <span aria-hidden="true">↗</span></>}
-          </button>
-        </div>
-      </form>
-
-      {error && <p className="error" role="alert">{error}</p>}
-      {loading && <p className="loading-note" role="status">Käymme tilannettasi läpi. Tämä voi kestää hetken.</p>}
-
-      {result && <section className="results" aria-live="polite">
-        <div className="result-heading">
-          <div><p className="eyebrow">SELVITYS VALMIS</p><h2>Tilanteesi ja seuraavat askeleet</h2></div>
-          <span className="form-step">02 <span>/ 02</span></span>
-        </div>
-        <div className="result-card answer-card">
-          <p className="section-label">ARVIO</p>
-          <p className="answer">{result.answer}</p>
-        </div>
-        <div className="result-card">
-          <p className="section-label">LÄHTEET</p>
-          {result.sources.length > 0 ? <ul className="sources">
-            {result.sources.map((source) => <li key={source.url}>
-              <a href={source.url} target="_blank" rel="noreferrer">{source.title}<span aria-hidden="true"> ↗</span></a>
-              {source.quote && <p>{source.quote}</p>}
-            </li>)}
-          </ul> : <p className="empty-sources">Tähän selvitykseen ei löytynyt lähteitä.</p>}
-        </div>
-        <div className="result-card draft-card">
-          <div className="draft-heading">
-            <div><p className="section-label">VIESTILUONNOS</p><h2>Tarkista ja muokkaa</h2></div>
-            <span className="editable-tag"><span aria-hidden="true">✎</span> Muokattavissa</span>
-          </div>
-          <p className="draft-hint">Muokkaa viestiä tilanteeseesi sopivaksi ennen kuin lähetät sen.</p>
-          <textarea className="draft" aria-label="Muokattava viestiluonnos" rows={10} value={draft} onChange={(event) => { setDraft(event.target.value); setCopyStatus(""); }} />
-          <div className="draft-footer">
-            <p className="draft-safety">Reklama ei lähetä viestiä puolestasi.</p>
-            <button className="secondary-button" type="button" onClick={copyDraft} disabled={!draft.trim()}>
-              <span aria-hidden="true">▢</span> Kopioi luonnos
-            </button>
-          </div>
-          {copyStatus && <p className="copy-status" role="status">{copyStatus}</p>}
-        </div>
-      </section>}
+          </ul>
+        </aside>
+      </div>
 
       <footer>
-        <p className="legal">Tämä palvelu ei anna oikeudellista neuvontaa. Tarkista tiedot ja luonnos ennen kuin toimit.</p>
-        <span>REKLAMA · SINUN PUOLELLASI</span>
+        <p className="legal">Ilmoitukset haetaan julkisista lähteistä Exan avulla. Tarkista tiedot ja hakuaika aina alkuperäisestä ilmoituksesta. Palvelu ei hae työpaikkoja puolestasi.</p>
       </footer>
-    </main>
+    </div>
   );
 }

@@ -1,12 +1,11 @@
 [project]
-name = "reklama-backend"
+name = "job-search-backend"
 version = "0.1.0"
-description = "Reklama consumer rights assistant API"
+description = "Exa-powered job search API"
 requires-python = ">=3.11"
 dependencies = [
   "exa-py>=1.0.0",
   "fastapi>=0.115.0",
-  "openai>=1.0.0",
   "pydantic>=2.0.0",
   "python-dotenv>=1.0.0",
   "uvicorn[standard]>=0.30.0",

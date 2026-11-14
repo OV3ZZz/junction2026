@@ -1,21 +1,29 @@
-# Reklama architecture
+# Architecture
 
-Reklama focuses on consumer rights and compensation for delayed flights, defective products, and incorrect invoices. The user describes the issue in free text. The agent researches applicable laws, authority guidance, and the company's terms and complaint process, then prepares an answer and ready-to-send complaint letter. The user reviews and approves it; the app never sends it.
+The app is a job search for people who can describe what they want but not which job titles to search for. The user gives an area and a free-form wish. The backend sends those words almost verbatim to Exa deep search, which expands them into its own queries and returns structured job ads. The frontend shows three ads at a time.
 
 ## Request flow
 
 ```mermaid
 flowchart LR
-    U[User] -->|description| F[React frontend]
-    F -->|POST /claim| B[FastAPI backend]
-    B --> A[Agent loop]
-    A <-->|plan and tool results| L[LLM API]
-    A -->|search_web| E[Exa API]
-    E -->|search results and URLs| A
-    A --> D[Draft builder]
-    D -->|answer, sources, draft letter| B
-    B --> F
-    F -->|review and approve| U
+    U[User] -->|area + wish| F[React frontend]
+    F -->|POST /jobs/search| B[FastAPI backend]
+    F -->|POST /jobs/similar| B
+    B -->|deep search + output_schema| E[Exa API]
+    E -->|results + structured jobs| B
+    B -->|validated jobs| F
+    F -->|save to sidebar, open ad| U
 ```
 
-The agent plans with the LLM, calls `search_web` backed by Exa, reads the results, and repeats until it has enough information or reaches `MAX_ROUNDS = 5`. Every source URL must originate in Exa results; the LLM must never invent links. The scaffold returns stable fake source data when `EXA_API_KEY` is absent, keeping `/claim` usable for development.
+- `/jobs/search`: Exa deep search with a 21-day freshness filter, highlights and an output schema (title, employer, location, url, deadline, summary, why). No separate LLM call.
+- `/jobs/similar`: the same deep search, with the liked ad (title and summary) added to the original wish. Exa `findSimilar` was tried first but matched page layout (same recruiter, same job board) rather than the job itself.
+- Every returned URL must be one of Exa's own results; anything else is dropped. Ads the user has already seen (`exclude_urls`) are dropped too.
+- Rejecting a batch with feedback ("too far away") sends the feedback with the next search.
+- Saved ads live in the browser's `localStorage`; there is no database.
+- Without `EXA_API_KEY` the backend returns a stub ad so the app still runs.
+- Identical searches are cached in memory for an hour; a global hourly limit protects Exa credits.
+- Hosting: one Docker container on Render serves the built frontend and the API from the same origin.
+
+## Why Exa deep search directly
+
+A benchmark (8 vague Finnish wishes, every link fetched and checked) compared a plain LLM, Gemini with Google Search grounding, Gemini writing Exa queries, and Exa deep search on the raw text. Exa deep search with an output schema gave the most ads that were still open (87 %, vs 28 % for Google grounding and 0 % for a plain LLM), from 14 different sites, with no invented links and no LLM tokens.
