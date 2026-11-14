@@ -1,10 +1,14 @@
 """FastAPI application and transport routes."""
 
-from fastapi import FastAPI
+import logging
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .agent import handle_claim
 from .schemas import ClaimRequest, ClaimResponse
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Reklama API")
 app.add_middleware(
@@ -25,4 +29,12 @@ def health() -> dict[str, str]:
 @app.post("/claim", response_model=ClaimResponse)
 def claim(request: ClaimRequest) -> ClaimResponse:
     """Analyze a consumer claim and return a draft for the user to review."""
-    return handle_claim(request.description)
+    try:
+        return handle_claim(request.description)
+    except Exception as error:
+        # Raising HTTPException keeps CORS headers, so the browser shows this message
+        # instead of a generic "Failed to fetch".
+        logger.exception("Claim handling failed")
+        raise HTTPException(
+            status_code=502, detail="Selvitys epäonnistui. Yritä hetken päästä uudelleen."
+        ) from error

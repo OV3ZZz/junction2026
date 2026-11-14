@@ -9,7 +9,7 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 # Gemini offers an OpenAI-compatible endpoint, so the `openai` package can talk to it.
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
 
 
 def get_exa_key() -> str | None:

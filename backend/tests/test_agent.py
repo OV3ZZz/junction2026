@@ -51,6 +51,12 @@ def test_loop_searches_then_answers(live: None, monkeypatch: pytest.MonkeyPatch)
     assert response.draft_letter == "Hei, kirje"
 
 
+def test_cited_sources_handles_grouped_ids() -> None:
+    found = [Source(title=str(i), url=f"https://example.org/{i}") for i in range(1, 5)]
+    answer = "Korvaus on 250 € [S1, S3] ja asetus [S4]."
+    assert [s.title for s in agent._cited_sources(answer, found)] == ["1", "3", "4"]
+
+
 def test_loop_stops_after_max_rounds(live: None, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[dict[str, Any]] = []
 

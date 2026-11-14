@@ -122,7 +122,8 @@ def _remember(source: Source, found: list[Source]) -> str:
 
 def _cited_sources(answer: str, found: list[Source]) -> list[Source]:
     """Return the sources the answer cites, or every found source if it cites none."""
-    cited = {int(number) for number in re.findall(r"\[S(\d+)\]", answer)}
+    groups = re.findall(r"\[(S\d+(?:\s*,\s*S\d+)*)\]", answer)
+    cited = {int(number) for group in groups for number in re.findall(r"S(\d+)", group)}
     selected = [source for index, source in enumerate(found, start=1) if index in cited]
     return selected or found
 
