@@ -112,6 +112,7 @@ input:focus, textarea:focus { border-color: var(--heading-accent); }
 .saved-card { position: relative; flex: 0 0 min(76vw, 300px); scroll-snap-align: start; padding: 15px 42px 14px 15px; border: 1px solid var(--card-border); border-radius: 13px; background: var(--surface); }
 .saved-card a { color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.35; }
 .saved-card p { margin: 6px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.4; }
+.saved-card .saved-deadline { display: inline-block; margin-top: 8px; }
 .remove-button, .close-button { display: inline-grid; place-items: center; border: 1px solid var(--secondary-border); border-radius: 50%; background: transparent; color: var(--text-secondary); }
 .remove-button { position: absolute; top: 12px; right: 12px; width: 25px; height: 25px; font-size: 17px; }
 .saved-empty { margin: 2px 0 14px; }

@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field, StringConstraints
 
 ResponseLanguage = Literal["fi", "en"]
+JobStatus = Literal["open", "unknown"]
 SearchWish = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
@@ -36,6 +37,7 @@ class Job(BaseModel):
     deadline: str | None = None
     summary: str
     why: str | None = None
+    status: JobStatus = "open"
 
 
 class JobSearchResponse(BaseModel):

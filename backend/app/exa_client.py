@@ -11,6 +11,8 @@ from .config import get_exa_key
 FRESH_DAYS = 21
 NUM_RESULTS = 15
 HIGHLIGHT_CHARS = 400
+# These aggregators keep stale ads online and may not expose their closed status reliably.
+EXCLUDED_DOMAINS = ["bebee.com", "jooble.org", "careerjet.fi", "jobleads.com", "drjobpro.com"]
 
 
 def _client() -> Exa:
@@ -27,6 +29,7 @@ def deep_search(query: str, system_prompt: str, output_schema: dict[str, Any]) -
         query,
         type="deep",
         num_results=NUM_RESULTS,
+        exclude_domains=EXCLUDED_DOMAINS,
         start_published_date=_since(),
         system_prompt=system_prompt,
         output_schema=output_schema,

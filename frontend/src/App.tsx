@@ -9,6 +9,7 @@ type Job = {
   deadline?: string | null;
   summary: string;
   why?: string | null;
+  status?: "open" | "unknown";
 };
 type JobSearchResponse = { jobs: Job[] };
 
@@ -29,7 +30,7 @@ const copy = {
     area: "Hakukohde", areaPlaceholder: "Kaupunki tai alue", wishLabel: "Kerro osaamisestasi ja toiveistasi",
     wishPlaceholder: "Esim. taidot, työajat tai mitä haluat välttää",
     privacy: "Älä lisää henkilötietoja.", search: "Etsi työpaikkoja", searching: "Haetaan…", suggestions: "Työpaikat",
-    noResults: "En tunnistanut hakutoivetta tai uusia sopivia ilmoituksia ei löytynyt. Kuvaile taitojasi tai toiveitasi uudelleen.", deadline: "Haku päättyy",
+    noResults: "En tunnistanut hakutoivetta tai uusia sopivia ilmoituksia ei löytynyt. Kuvaile taitojasi tai toiveitasi uudelleen.", deadline: "Haku päättyy", unknownDeadline: "Tarkista hakuaika",
     why: "Miksi sinulle:", saved: "Tallennettu", save: "Tallenna", feedbackLabel: "Mitä haluat muuttaa haussa?",
     feedbackPlaceholder: "Tarkenna hakua (valinnainen)", next: "Näytä kolme uutta",
     savedTitle: "Tallennetut työpaikat", emptySaved: "Ei tallennettuja työpaikkoja.", remove: "Poista",
@@ -42,7 +43,7 @@ const copy = {
     area: "Location", areaPlaceholder: "City or region", wishLabel: "Tell us about your skills and preferences",
     wishPlaceholder: "E.g. skills, hours, or what you want to avoid",
     privacy: "Don’t include personal information.", search: "Find jobs", searching: "Searching…", suggestions: "Jobs",
-    noResults: "I couldn’t understand the search or find matching jobs. Try describing your skills or preferences another way.", deadline: "Apply by",
+    noResults: "I couldn’t understand the search or find matching jobs. Try describing your skills or preferences another way.", deadline: "Apply by", unknownDeadline: "Check the deadline",
     why: "Why it may suit you:", saved: "Saved", save: "Save", feedbackLabel: "What would you change?",
     feedbackPlaceholder: "Refine your search (optional)", next: "Show three more",
     savedTitle: "Saved jobs", emptySaved: "No saved jobs.", remove: "Remove",
@@ -165,7 +166,7 @@ export default function App() {
     event.preventDefault();
     setFeedback("");
     const responseLanguage = inputLanguage(wish, language);
-    run(() => post("/jobs/search", { area, wish: wish.trim(), response_language: responseLanguage, ...skipList([]) }, t.searchError), []);
+    run(() => post("/jobs/search", { area: area.trim(), wish: wish.trim(), response_language: responseLanguage, ...skipList([]) }, t.searchError), []);
   }
 
   function handleWishKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -183,7 +184,7 @@ export default function App() {
     const note = feedback.trim() || null;
     setFeedback("");
     const responseLanguage = inputLanguage(wish, language);
-    run(() => post("/jobs/search", { area, wish: wish.trim(), response_language: responseLanguage, ...skipList(seen), feedback: note }, t.searchError), seen);
+    run(() => post("/jobs/search", { area: area.trim(), wish: wish.trim(), response_language: responseLanguage, ...skipList(seen), feedback: note }, t.searchError), seen);
   }
 
   const isSaved = (job: Job) => saved.some((item) => item.url === job.url);
@@ -256,7 +257,9 @@ export default function App() {
                       <h2><a href={job.url} target="_blank" rel="noreferrer">{job.title}<span aria-hidden="true"> ↗</span></a></h2>
                       <p className="job-meta">{[job.employer, job.location].filter(Boolean).join(" · ")}</p>
                     </div>
-                    {job.deadline && <span className="deadline">{t.deadline} {job.deadline}</span>}
+                    {(job.status ?? "open") === "unknown"
+                      ? <span className="deadline" title={t.unknownDeadline}>{t.unknownDeadline}</span>
+                      : job.deadline && <span className="deadline">{t.deadline} {job.deadline}</span>}
                   </div>
                   {job.summary && <p className="job-summary">{job.summary}</p>}
                   {job.why && <p className="job-why"><strong>{t.why}</strong> {job.why}</p>}
@@ -289,7 +292,10 @@ export default function App() {
               {saved.map((job) => (
                 <article className="saved-card" key={job.url}>
                   <a href={job.url} target="_blank" rel="noreferrer">{job.title}</a>
-                  <p>{[job.employer, job.location, job.deadline && `${t.deadline} ${job.deadline}`].filter(Boolean).join(" · ")}</p>
+                  <p>{[job.employer, job.location].filter(Boolean).join(" · ")}</p>
+                  {(job.status ?? "open") === "unknown"
+                    ? <span className="deadline saved-deadline">{t.unknownDeadline}</span>
+                    : job.deadline && <p>{t.deadline} {job.deadline}</p>}
                   <button className="remove-button" type="button" aria-label={`${t.remove} ${job.title}`} onClick={() => toggleSave(job)}>×</button>
                 </article>
               ))}
