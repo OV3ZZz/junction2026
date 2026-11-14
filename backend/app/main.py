@@ -39,7 +39,8 @@ def health() -> dict[str, str]:
 def jobs_search(request: JobSearchRequest) -> JobSearchResponse:
     """Find fresh job ads that match the user's area and free-form wish."""
     return _respond(lambda: search_jobs(
-        request.area, request.wish, request.exclude_urls, request.feedback, request.seen_jobs))
+        request.area, request.wish, request.exclude_urls, request.feedback, request.seen_jobs,
+        request.response_language))
 
 
 def _respond(find: Callable[[], list[Job]]) -> JobSearchResponse:

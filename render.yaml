@@ -2,7 +2,7 @@
 # The Exa key is entered in the Render dashboard (sync: false) and never stored in git.
 services:
   - type: web
-    name: paikka
+    name: WorkHunter
     runtime: docker
     # The free plan sleeps after ~15 min idle and needs ~1 min to wake up.
     # Switch to "starter" for judging so the demo link answers immediately.

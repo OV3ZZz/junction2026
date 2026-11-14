@@ -7,7 +7,7 @@ from typing import Any
 from . import cache, deadline, exa_client
 from .config import get_exa_key
 from .dedupe import same_job
-from .schemas import Job, SeenJob
+from .schemas import Job, ResponseLanguage, SeenJob
 
 MAX_JOBS = 9  # the frontend shows three at a time
 
@@ -49,25 +49,42 @@ STUB_JOBS = [
 ]
 
 
-def build_query(area: str, wish: str, feedback: str | None = None) -> str:
+def build_query(
+    area: str,
+    wish: str,
+    feedback: str | None = None,
+    response_language: ResponseLanguage = "fi",
+) -> str:
     """Pass the user's own words to Exa almost verbatim; Exa deep search expands them."""
-    parts = [f"Avoimet työpaikat: {wish.strip()}"]
+    if response_language == "en":
+        parts = [f"Open jobs matching this description: {wish.strip()}"]
+        area_label = "Location"
+    else:
+        parts = [f"Avoimet työpaikat: {wish.strip()}"]
+        area_label = "Alue"
     if area.strip():
-        parts.append(f"Alue: {area.strip()}")
+        parts.append(f"{area_label}: {area.strip()}")
     if feedback and feedback.strip():
         parts.append(feedback.strip())
     return "\n".join(parts)
 
 
-def system_prompt() -> str:
+def system_prompt(response_language: ResponseLanguage = "fi") -> str:
+    if response_language == "en":
+        output_instructions = (
+            "Write the job title, summary, and why in English. Translate titles and descriptions "
+            "when needed, but keep employer names and official location names unchanged."
+        )
+    else:
+        output_instructions = "Write the job title, summary, and why in Finnish."
     return (
         "Find single job advertisements in Finland that are still open for applications "
         f"(today is {date.today().isoformat()}) and fit the person's wish. Prefer the ad page "
         "itself on job boards or the employer's own careers page, not listing or search pages. "
         "Skip ads whose application deadline has passed. List each position only once even if "
         "it is posted on several sites; prefer the employer's own page. "
-        f"Return up to {MAX_JOBS} jobs. Write 'summary' (2 sentences about the duties) and 'why' "
-        "(1 sentence on why it fits the wish) in Finnish. 'deadline' as YYYY-MM-DD or empty."
+        f"Return up to {MAX_JOBS} jobs. {output_instructions} Write 'summary' (2 sentences about "
+        "the duties) and 'why' (1 sentence on why it fits the wish). 'deadline' as YYYY-MM-DD or empty."
     )
 
 
@@ -77,14 +94,26 @@ def search_jobs(
     exclude_urls: list[str],
     feedback: str | None = None,
     seen_jobs: list[SeenJob] | None = None,
+    response_language: ResponseLanguage = "fi",
 ) -> list[Job]:
     """Return fresh job ads for the wish, skipping ads the user has already seen."""
     if not get_exa_key():
+        if response_language == "en":
+            return [
+                job.model_copy(update={
+                    "title": "Example job (stub)",
+                    "employer": "Example Inc.",
+                    "summary": "Development example. Set EXA_API_KEY to run a real search.",
+                    "why": "Shown because no Exa API key is configured.",
+                })
+                for job in STUB_JOBS
+            ]
         return [job.model_copy() for job in STUB_JOBS]
     skip = set(exclude_urls)
     kept: list[Job] = []
     previous = [(job.title, job.employer) for job in seen_jobs or []]
-    for job in _candidates(build_query(area, wish, feedback)):
+    query = build_query(area, wish, feedback, response_language)
+    for job in _candidates(query, response_language):
         if job.url in skip or any(same_job(job.title, job.employer, *p) for p in previous):
             continue
         kept.append(job)
@@ -92,15 +121,16 @@ def search_jobs(
     return kept[:MAX_JOBS]
 
 
-def _candidates(query: str) -> list[Job]:
+def _candidates(query: str, response_language: ResponseLanguage = "fi") -> list[Job]:
     """Valid, still-open jobs for a query, cached for repeat searches."""
-    cached = cache.get(query)
+    cache_key = query if response_language == "fi" else f"en:{query}"
+    cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    response = exa_client.deep_search(query, system_prompt(), JOB_SCHEMA)
+    response = exa_client.deep_search(query, system_prompt(response_language), JOB_SCHEMA)
     allowed = {result.url for result in response.results}
     jobs = _valid_jobs(_output_jobs(response), allowed)
-    cache.put(query, jobs)
+    cache.put(cache_key, jobs)
     return jobs
 
 
