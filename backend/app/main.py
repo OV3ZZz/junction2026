@@ -9,9 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .config import get_allowed_origins
-from .jobs import search_jobs, similar_jobs
+from .jobs import search_jobs
 from .rate_limit import check_search_limit
-from .schemas import Job, JobSearchRequest, JobSearchResponse, SimilarJobsRequest
+from .schemas import Job, JobSearchRequest, JobSearchResponse
 
 logger = logging.getLogger(__name__)
 
@@ -40,14 +40,6 @@ def jobs_search(request: JobSearchRequest) -> JobSearchResponse:
     """Find fresh job ads that match the user's area and free-form wish."""
     return _respond(lambda: search_jobs(
         request.area, request.wish, request.exclude_urls, request.feedback))
-
-
-@app.post("/jobs/similar", response_model=JobSearchResponse,
-          dependencies=[Depends(check_search_limit)])
-def jobs_similar(request: SimilarJobsRequest) -> JobSearchResponse:
-    """Find ads similar to one the user liked."""
-    return _respond(lambda: similar_jobs(
-        request.area, request.wish, request.job, request.exclude_urls))
 
 
 def _respond(find: Callable[[], list[Job]]) -> JobSearchResponse:
