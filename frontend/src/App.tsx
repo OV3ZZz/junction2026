@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 
 // Mirrors backend/app/schemas.py
 type Job = {
@@ -29,7 +29,7 @@ const copy = {
     area: "Hakukohde", areaPlaceholder: "Kaupunki tai alue", wishLabel: "Kerro osaamisestasi ja toiveistasi",
     wishPlaceholder: "Esim. taidot, työajat tai mitä haluat välttää",
     privacy: "Älä lisää henkilötietoja.", search: "Etsi työpaikkoja", searching: "Haetaan…", suggestions: "Työpaikat",
-    noResults: "Ei uusia ilmoituksia.", deadline: "Haku päättyy",
+    noResults: "En tunnistanut hakutoivetta tai uusia sopivia ilmoituksia ei löytynyt. Kuvaile taitojasi tai toiveitasi uudelleen.", deadline: "Haku päättyy",
     why: "Miksi sinulle:", saved: "Tallennettu", save: "Tallenna", feedbackLabel: "Mitä haluat muuttaa haussa?",
     feedbackPlaceholder: "Tarkenna hakua (valinnainen)", next: "Näytä kolme uutta",
     savedTitle: "Tallennetut työpaikat", emptySaved: "Ei tallennettuja työpaikkoja.", remove: "Poista",
@@ -42,7 +42,7 @@ const copy = {
     area: "Location", areaPlaceholder: "City or region", wishLabel: "Tell us about your skills and preferences",
     wishPlaceholder: "E.g. skills, hours, or what you want to avoid",
     privacy: "Don’t include personal information.", search: "Find jobs", searching: "Searching…", suggestions: "Jobs",
-    noResults: "No new listings.", deadline: "Apply by",
+    noResults: "I couldn’t understand the search or find matching jobs. Try describing your skills or preferences another way.", deadline: "Apply by",
     why: "Why it may suit you:", saved: "Saved", save: "Save", feedbackLabel: "What would you change?",
     feedbackPlaceholder: "Refine your search (optional)", next: "Show three more",
     savedTitle: "Saved jobs", emptySaved: "No saved jobs.", remove: "Remove",
@@ -168,6 +168,12 @@ export default function App() {
     run(() => post("/jobs/search", { area, wish: wish.trim(), response_language: responseLanguage, ...skipList([]) }, t.searchError), []);
   }
 
+  function handleWishKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey) return;
+    event.preventDefault();
+    if (!loading && wish.trim()) event.currentTarget.form?.requestSubmit();
+  }
+
   function nextThree() {
     // Feedback means the user wants a different direction: ask Exa again.
     if (queue.length > 0 && !feedback.trim()) {
@@ -223,7 +229,7 @@ export default function App() {
             <input id="area" value={area} onChange={(e) => setArea(e.target.value)} placeholder={t.areaPlaceholder} />
             <label htmlFor="wish">{t.wishLabel}</label>
             <textarea id="wish" required rows={4} value={wish} onChange={(e) => setWish(e.target.value)}
-              placeholder={t.wishPlaceholder} />
+              onKeyDown={handleWishKeyDown} placeholder={t.wishPlaceholder} />
             <div className="form-footer">
               <span>{t.privacy}</span>
               <button className="primary-button" type="submit" disabled={loading || !wish.trim()}>

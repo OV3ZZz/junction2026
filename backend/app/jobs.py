@@ -81,10 +81,18 @@ def system_prompt(response_language: ResponseLanguage = "fi") -> str:
         "Find single job advertisements in Finland that are still open for applications "
         f"(today is {date.today().isoformat()}) and fit the person's wish. Prefer the ad page "
         "itself on job boards or the employer's own careers page, not listing or search pages. "
-        "Skip ads whose application deadline has passed. List each position only once even if "
-        "it is posted on several sites; prefer the employer's own page. "
+        "Only include ads that are currently open. Exclude an ad if its page or source text says "
+        "applications have closed or gives a closing date in the past, even if the exact deadline "
+        "cannot be extracted. A missing deadline may be empty only when the ad still appears open. "
+        "If open status is unclear, leave it out. List each position only "
+        "once even if it is posted on several sites; prefer the employer's own page. "
+        "If the wish is nonsensical (for example, 'asdfgh qwerty zxcv') or has no interpretable "
+        "work-related skills or preferences, return an empty jobs list; never guess a role or "
+        "default location. "
         f"Return up to {MAX_JOBS} jobs. {output_instructions} Write 'summary' (2 sentences about "
-        "the duties) and 'why' (1 sentence on why it fits the wish). 'deadline' as YYYY-MM-DD or empty."
+        "the duties) and 'why' (1 sentence explaining only how the job fits the person's stated "
+        "skills or preferences). Do not mention deadlines, closing dates, or application status "
+        "in 'why'; those belong only in 'deadline'. 'deadline' as YYYY-MM-DD or empty."
     )
 
 
@@ -123,7 +131,7 @@ def search_jobs(
 
 def _candidates(query: str, response_language: ResponseLanguage = "fi") -> list[Job]:
     """Valid, still-open jobs for a query, cached for repeat searches."""
-    cache_key = query if response_language == "fi" else f"en:{query}"
+    cache_key = f"prompt-v2:{response_language}:{query}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached

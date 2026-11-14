@@ -96,7 +96,7 @@ input:focus, textarea:focus { border-color: var(--heading-accent); }
 .job-head > div { min-width: 0; }
 .job-card h2 { margin: 0; font-size: 19px; font-weight: 500; line-height: 1.25; }
 .job-card h2 a { color: var(--text); text-decoration-thickness: 1px; text-underline-offset: 3px; }
-.job-meta { margin: 5px 0 0; color: var(--text-muted); font-size: 12px; }
+.job-meta { margin: 5px 0 0; color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
 .deadline { flex: 0 0 auto; padding: 5px 8px; border: 1px solid var(--secondary-border); border-radius: 8px; color: var(--deadline-text); font-size: 11px; }
 .job-summary { margin: 14px 0 0; color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
 .job-why { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--why-bg); color: var(--why-text); font-size: 13px; line-height: 1.5; }
@@ -140,5 +140,7 @@ input:focus, textarea:focus { border-color: var(--heading-accent); }
   .form-footer .primary-button { width: 100%; }
   .next-box { align-items: stretch; flex-direction: column; }
   .job-card { padding: 17px; }
+  .job-head { flex-direction: column; }
+  .deadline { align-self: flex-start; }
   .footer { padding-top: 19px; }
 }

@@ -1,10 +1,11 @@
 """API schemas shared by the backend and frontend contract."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 ResponseLanguage = Literal["fi", "en"]
+SearchWish = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class SeenJob(BaseModel):
@@ -18,7 +19,7 @@ class JobSearchRequest(BaseModel):
     """A job seeker's area and free-form wish, plus what to skip on a refresh."""
 
     area: str = ""
-    wish: str = Field(min_length=1)
+    wish: SearchWish
     exclude_urls: list[str] = Field(default_factory=list)
     seen_jobs: list[SeenJob] = Field(default_factory=list)
     feedback: str | None = None
