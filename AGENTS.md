@@ -4,7 +4,7 @@
 Reklama helps consumers research potential compensation for delayed flights, defective products, and incorrect invoices. The user describes a problem; the agent researches it and prepares a complaint letter for the user to review. The app never sends a letter.
 
 ## Architecture
-Frontend (Vite, React, TypeScript) -> FastAPI backend -> agent loop <-> OpenAI and Exa -> draft builder -> frontend approval. The agent may call `search_web` backed by Exa, read results, and repeat for up to `MAX_ROUNDS = 5`. All source URLs must come from Exa results; the model must not invent links. The initial scaffold uses deterministic stub data so the full API contract works without credentials.
+Frontend (Vite, React, TypeScript) -> FastAPI backend -> agent loop <-> Gemini (via its OpenAI-compatible endpoint) and Exa -> draft builder -> frontend approval. The agent may call `search_web` backed by Exa, read results, and repeat for up to `MAX_ROUNDS = 5`. All source URLs must come from Exa results; the model must not invent links. The initial scaffold uses deterministic stub data so the full API contract works without credentials.
 
 ## Commands
 - Backend install: `cd backend; uv sync` (or create `.venv` and use `pip install -e ".[dev]"` if uv is unavailable)
