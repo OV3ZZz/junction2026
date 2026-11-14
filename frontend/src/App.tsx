@@ -47,7 +47,7 @@ export default function App() {
   const [feedback, setFeedback] = useState("");
   const [shown, setShown] = useState<Job[]>([]);
   const [queue, setQueue] = useState<Job[]>([]);
-  const [seen, setSeen] = useState<string[]>([]);
+  const [seen, setSeen] = useState<Job[]>([]); // every job shown so far
   const [saved, setSaved] = useState<Job[]>(loadSaved);
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -61,15 +61,23 @@ export default function App() {
     }
   }, [saved]);
 
-  function showFrom(jobs: Job[], alreadySeen: string[]) {
-    const fresh = jobs.filter((job) => !alreadySeen.includes(job.url));
+  function showFrom(jobs: Job[], alreadySeen: Job[]) {
+    const fresh = jobs.filter((job) => !alreadySeen.some((old) => old.url === job.url));
     const page = fresh.slice(0, PAGE_SIZE);
     setShown(page);
     setQueue(fresh.slice(PAGE_SIZE));
-    setSeen([...alreadySeen, ...page.map((job) => job.url)]);
+    setSeen([...alreadySeen, ...page]);
   }
 
-  async function run(load: () => Promise<Job[]>, alreadySeen: string[]) {
+  // The backend skips these URLs and the same positions posted on other sites.
+  function skipList(alreadySeen: Job[]) {
+    return {
+      exclude_urls: alreadySeen.map((job) => job.url),
+      seen_jobs: alreadySeen.map((job) => ({ title: job.title, employer: job.employer ?? null })),
+    };
+  }
+
+  async function run(load: () => Promise<Job[]>, alreadySeen: Job[]) {
     setLoading(true);
     setError("");
     try {
@@ -85,7 +93,7 @@ export default function App() {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFeedback("");
-    run(() => post("/jobs/search", { area, wish: wish.trim(), exclude_urls: [] }), []);
+    run(() => post("/jobs/search", { area, wish: wish.trim(), ...skipList([]) }), []);
   }
 
   function nextThree() {
@@ -96,7 +104,7 @@ export default function App() {
     }
     const note = feedback.trim() || null;
     setFeedback("");
-    run(() => post("/jobs/search", { area, wish: wish.trim(), exclude_urls: seen, feedback: note }), seen);
+    run(() => post("/jobs/search", { area, wish: wish.trim(), ...skipList(seen), feedback: note }), seen);
   }
 
   const isSaved = (job: Job) => saved.some((item) => item.url === job.url);

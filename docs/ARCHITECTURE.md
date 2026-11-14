@@ -16,6 +16,8 @@ flowchart LR
 
 - `/jobs/search`: Exa deep search with a 21-day freshness filter, highlights and an output schema (title, employer, location, url, deadline, summary, why). No separate LLM call.
 - Every returned URL must be one of Exa's own results; anything else is dropped. Ads the user has already seen (`exclude_urls`) are dropped too.
+- Ads with a deadline in the past are dropped (Exa returns the deadline as a date). The same position posted on several sites is shown once: ads are compared by title and employer, within a batch and against jobs already shown (`seen_jobs`).
+- Only Exa's structured jobs become cards; raw search results without a summary are not shown.
 - Rejecting a batch with feedback ("too far away") sends the feedback with the next search.
 - Saved ads live in the browser's `localStorage`; there is no database.
 - Without `EXA_API_KEY` the backend returns a stub ad so the app still runs.
