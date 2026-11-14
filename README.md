@@ -44,7 +44,7 @@ This project should demonstrate:
 
 ## Setup and run
 
-Requirements: Python 3.11+, Node.js/npm, and `uv` (recommended). Copy `.env.example` to `.env` and add API keys to enable live integrations; the claim endpoint uses stub data when Exa credentials are absent.
+Requirements: Python 3.11–3.13, Node.js/npm, and `uv` (recommended). Copy `.env.example` to `.env` and add `GEMINI_API_KEY` and `EXA_API_KEY` to enable the live agent; without them the claim endpoint returns stub data so the app still runs end to end. Never commit real keys.
 
 Backend:
 
@@ -64,4 +64,24 @@ npm install
 npm run dev
 ```
 
-The frontend defaults to `http://localhost:8000` for the backend; set `VITE_API_URL` to override it. Build with `cd frontend; npm run build`.
+In development the frontend calls `http://localhost:8000`; a production build calls the same origin that served it. Set `VITE_API_URL` to override either. Build with `cd frontend; npm run build`.
+
+## Deployment
+
+The root `Dockerfile` builds the frontend and runs the FastAPI backend in one container, which serves the API and the frontend from the same URL (no CORS setup needed). API keys are set as environment variables on the hosting platform and never stored in the repository.
+
+Render (uses `render.yaml`):
+
+1. In Render, choose **New → Blueprint** and connect this GitHub repository.
+2. Enter `GEMINI_API_KEY` and `EXA_API_KEY` when asked.
+3. Deploy, then open the service URL. `/health` should return `{"status":"ok"}`.
+
+Any Docker host works the same way: build the root `Dockerfile` and set the environment variables below.
+
+| Variable | Purpose |
+|---|---|
+| `GEMINI_API_KEY`, `EXA_API_KEY` | Enable the live agent |
+| `GEMINI_MODEL` | Gemini model name (default `gemini-3.8-flash`) |
+| `MAX_CLAIMS_PER_HOUR` | Global hourly `/claim` limit that protects API credits (default 60, `0` disables) |
+| `ALLOWED_ORIGINS` | Comma-separated origins, only needed if the frontend is hosted on a different domain |
+| `PORT` | Set by the platform; defaults to 8000 |

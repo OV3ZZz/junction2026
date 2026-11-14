@@ -1,0 +1,20 @@
+# Render Blueprint: one Docker web service for API + frontend.
+# API keys are entered in the Render dashboard (sync: false) and never stored in git.
+services:
+  - type: web
+    name: reklama
+    runtime: docker
+    # The free plan sleeps after ~15 min idle and needs ~1 min to wake up.
+    # Use "starter" during judging so live queries answer immediately.
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: EXA_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+      - key: MAX_CLAIMS_PER_HOUR
+        value: "60"

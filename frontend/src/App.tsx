@@ -3,7 +3,8 @@ import { FormEvent, useState } from "react";
 type Source = { title: string; url: string; quote?: string | null };
 type ClaimResponse = { answer: string; sources: Source[]; draft_letter: string };
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+// Dev talks to the local backend; a production build calls the same origin that served it.
+const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
 const EXAMPLES = [
   {
     label: "Myöhästynyt lento",

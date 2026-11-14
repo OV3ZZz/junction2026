@@ -25,3 +25,19 @@ def get_gemini_key() -> str | None:
 def get_gemini_model() -> str:
     """Return the configured Gemini model name or a sensible default."""
     return os.getenv("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL
+
+
+DEFAULT_ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+DEFAULT_MAX_CLAIMS_PER_HOUR = 60
+
+
+def get_allowed_origins() -> list[str]:
+    """Return browser origins allowed to call the API from another domain."""
+    raw = os.getenv("ALLOWED_ORIGINS") or DEFAULT_ALLOWED_ORIGINS
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+def get_max_claims_per_hour() -> int:
+    """Return the global /claim limit per hour that protects API credits; 0 disables it."""
+    value = os.getenv("MAX_CLAIMS_PER_HOUR")
+    return int(value) if value else DEFAULT_MAX_CLAIMS_PER_HOUR
