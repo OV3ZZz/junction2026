@@ -3,12 +3,20 @@
 from pydantic import BaseModel, Field
 
 
+class SeenJob(BaseModel):
+    """A job already shown, so the same position on another site is skipped."""
+
+    title: str
+    employer: str | None = None
+
+
 class JobSearchRequest(BaseModel):
     """A job seeker's area and free-form wish, plus what to skip on a refresh."""
 
     area: str = ""
     wish: str = Field(min_length=1)
     exclude_urls: list[str] = Field(default_factory=list)
+    seen_jobs: list[SeenJob] = Field(default_factory=list)
     feedback: str | None = None
 
 

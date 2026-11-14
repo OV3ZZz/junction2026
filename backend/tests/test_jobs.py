@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from app import exa_client, jobs
+from app.schemas import SeenJob
 
 
 def _result(url: str) -> SimpleNamespace:
@@ -57,14 +58,48 @@ def test_search_handles_json_string_output(live: None, monkeypatch: pytest.Monke
     assert [job.title for job in jobs.search_jobs("", "toive", [])] == ["A"]
 
 
-def test_search_tops_up_from_plain_results(live: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    urls = ["https://a.fi/1", "https://linkedin.com/in/someone", "https://b.fi/2", "https://c.fi/3"]
-    response = _deep_response([{"title": "A", "url": "https://a.fi/1"}], urls)
+def test_search_shows_only_structured_jobs(live: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Raw results without a summary are not turned into cards any more.
+    urls = ["https://a.fi/1", "https://b.fi/2"]
+    response = _deep_response([{"title": "A", "url": "https://a.fi/1", "summary": "s"}], urls)
     monkeypatch.setattr(exa_client, "deep_search", lambda *args: response)
 
-    found = jobs.search_jobs("", "toive", exclude_urls=["https://c.fi/3"])
+    assert [job.url for job in jobs.search_jobs("", "toive", [])] == ["https://a.fi/1"]
 
-    assert [job.url for job in found] == ["https://a.fi/1", "https://b.fi/2"]
+
+def test_search_drops_expired_and_formats_deadline(
+    live: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    items = [
+        {"title": "Old", "url": "https://a.fi/1", "deadline": "2000-08-02"},
+        {"title": "Open", "url": "https://b.fi/2", "deadline": "2999-11-19"},
+    ]
+    response = _deep_response(items, ["https://a.fi/1", "https://b.fi/2"])
+    monkeypatch.setattr(exa_client, "deep_search", lambda *args: response)
+
+    found = jobs.search_jobs("", "toive", [])
+
+    assert [(job.title, job.deadline) for job in found] == [("Open", "19.11.2999")]
+
+
+def test_search_skips_same_job_on_another_site(
+    live: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    items = [
+        {"title": "Hankinta-assistentti", "employer": "HankintaPartners Oy",
+         "url": "https://duunitori.fi/1"},
+        {"title": "Hankinta-assistentti, HankintaPartners Oy", "employer": "Eilakaisla Oy",
+         "url": "https://laura.fi/2"},
+        {"title": "Asiakaspalvelija", "employer": "Firma Oy", "url": "https://iisihaku.fi/3"},
+        {"title": "Junior Developer", "employer": "Vuono Group", "url": "https://vuono.fi/4"},
+    ]
+    urls = [item["url"] for item in items]
+    monkeypatch.setattr(exa_client, "deep_search", lambda *args: _deep_response(items, urls))
+    already_shown = [SeenJob(title="Junior Developer | Duunitori", employer="Vuono Group Oy")]
+
+    found = jobs.search_jobs("", "toive", [], seen_jobs=already_shown)
+
+    assert [job.url for job in found] == ["https://duunitori.fi/1", "https://iisihaku.fi/3"]
 
 
 def test_repeat_search_uses_cache(live: None, monkeypatch: pytest.MonkeyPatch) -> None:
