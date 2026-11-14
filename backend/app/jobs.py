@@ -7,7 +7,7 @@ from typing import Any
 from . import cache, deadline, exa_client
 from .config import get_exa_key
 from .dedupe import same_job
-from .schemas import Job, ResponseLanguage, SeenJob
+from .schemas import Job, JobStatus, ResponseLanguage, SeenJob
 
 MAX_JOBS = 9  # the frontend shows three at a time
 
@@ -27,9 +27,26 @@ JOB_SCHEMA: dict[str, Any] = {
                         "type": "string",
                         "description": "Application deadline as YYYY-MM-DD, or empty if none",
                     },
+                    "status": {
+                        "type": "string",
+                        "enum": ["open", "closed", "unknown"],
+                        "description": (
+                            "Application status: open if applications are being accepted or the "
+                            "deadline is in the future; closed if applications have ended or the "
+                            "deadline passed; unknown if the ad gives no status information."
+                        ),
+                    },
+                    "status_evidence": {
+                        "type": "string",
+                        "description": (
+                            "A short direct excerpt from the ad supporting the status; empty only "
+                            "when status is unknown. This is internal evidence, not user-facing."
+                        ),
+                    },
                     "summary": {"type": "string"},
                     "why": {"type": "string"},
                 },
+                "required": ["title", "url", "status", "status_evidence"],
             },
         }
     },
@@ -78,13 +95,19 @@ def system_prompt(response_language: ResponseLanguage = "fi") -> str:
     else:
         output_instructions = "Write the job title, summary, and why in Finnish."
     return (
-        "Find single job advertisements in Finland that are still open for applications "
-        f"(today is {date.today().isoformat()}) and fit the person's wish. Prefer the ad page "
+        "Find single job advertisements that fit the person's wish. Respect the location in the "
+        "query; if no location is given, search without a geographic restriction. "
+        "If a place name is shared by locations in different countries and the user did not "
+        "specify a country, interpret it as the Finnish location. "
+        f"Today's date is {date.today().isoformat()}. Prefer the ad page "
         "itself on job boards or the employer's own careers page, not listing or search pages. "
-        "Only include ads that are currently open. Exclude an ad if its page or source text says "
-        "applications have closed or gives a closing date in the past, even if the exact deadline "
-        "cannot be extracted. A missing deadline may be empty only when the ad still appears open. "
-        "If open status is unclear, leave it out. List each position only "
+        "For every ad, classify application status as exactly 'open', 'closed', or 'unknown'. "
+        "Use 'open' when the deadline is in the future or the ad says applications are being "
+        "accepted; use 'closed' when the ad says applications ended or its deadline is in the "
+        "past; use 'unknown' when the ad gives no information about this. Include a short direct "
+        "excerpt from the ad as status_evidence, or an empty string only for unknown status. "
+        "Do not omit an ad only because its status is unknown. Exclude closed ads. A missing "
+        "deadline may be empty. List each position only "
         "once even if it is posted on several sites; prefer the employer's own page. "
         "If the wish is nonsensical (for example, 'asdfgh qwerty zxcv') or has no interpretable "
         "work-related skills or preferences, return an empty jobs list; never guess a role or "
@@ -131,7 +154,7 @@ def search_jobs(
 
 def _candidates(query: str, response_language: ResponseLanguage = "fi") -> list[Job]:
     """Valid, still-open jobs for a query, cached for repeat searches."""
-    cache_key = f"prompt-v2:{response_language}:{query}"
+    cache_key = f"status-v5:{response_language}:{query}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -156,7 +179,7 @@ def _output_jobs(response: Any) -> list[dict[str, Any]]:
 
 
 def _valid_jobs(items: list[dict[str, Any]], allowed: set[str]) -> list[Job]:
-    """Keep jobs whose URL is a real Exa result and whose deadline has not passed."""
+    """Keep open or unknown jobs from Exa, preferring explicitly open ads."""
     jobs: list[Job] = []
     seen: set[str] = set()
     today = date.today()
@@ -164,8 +187,14 @@ def _valid_jobs(items: list[dict[str, Any]], allowed: set[str]) -> list[Job]:
         url = item.get("url") or ""
         if url not in allowed or url in seen or not item.get("title"):
             continue
+        raw_status = item.get("status")
+        if raw_status == "closed":
+            continue
         if deadline.is_expired(item.get("deadline"), today):
             continue
+        status: JobStatus = (
+            raw_status if raw_status == "open" or raw_status == "unknown" else "unknown"
+        )
         seen.add(url)
         jobs.append(
             Job(
@@ -176,7 +205,8 @@ def _valid_jobs(items: list[dict[str, Any]], allowed: set[str]) -> list[Job]:
                 deadline=deadline.display(item.get("deadline")),
                 summary=item.get("summary") or "",
                 why=item.get("why") or None,
+                status=status,
             )
         )
-    return jobs
+    return sorted(jobs, key=lambda job: job.status != "open")
 

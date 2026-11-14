@@ -31,6 +31,15 @@ def test_build_query_keeps_user_words() -> None:
     assert "liian kaukana" in query
 
 
+def test_prompt_uses_free_form_location_without_finland_only_restriction() -> None:
+    prompt = jobs.system_prompt()
+
+    assert "Respect the location in the query" in prompt
+    assert "without a geographic restriction" in prompt
+    assert "interpret it as the Finnish location" in prompt
+    assert "in Finland" not in prompt
+
+
 def test_search_drops_invented_seen_and_duplicate_urls(
     live: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -80,6 +89,52 @@ def test_search_drops_expired_and_formats_deadline(
     found = jobs.search_jobs("", "toive", [])
 
     assert [(job.title, job.deadline) for job in found] == [("Open", "19.11.2999")]
+
+
+def test_search_drops_closed_keeps_unknown_and_sorts_open_first(
+    live: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    items = [
+        {"title": "Unknown", "url": "https://a.fi/unknown", "status": "unknown"},
+        {"title": "Closed", "url": "https://a.fi/closed", "status": "closed"},
+        {"title": "Open", "url": "https://a.fi/open", "status": "open"},
+    ]
+    urls = [item["url"] for item in items]
+    monkeypatch.setattr(exa_client, "deep_search", lambda *args: _deep_response(items, urls))
+
+    found = jobs.search_jobs("", "toive", [])
+
+    assert [(job.title, job.status) for job in found] == [
+        ("Open", "open"),
+        ("Unknown", "unknown"),
+    ]
+
+
+def test_search_drops_unknown_with_expired_deadline(
+    live: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    items = [
+        {"title": "Unknown expired", "url": "https://a.fi/expired", "status": "unknown",
+         "deadline": "2000-08-02"},
+        {"title": "Unknown without deadline", "url": "https://a.fi/unknown", "status": "unknown"},
+    ]
+    urls = [item["url"] for item in items]
+    monkeypatch.setattr(exa_client, "deep_search", lambda *args: _deep_response(items, urls))
+
+    found = jobs.search_jobs("", "toive", [])
+
+    assert [job.url for job in found] == ["https://a.fi/unknown"]
+
+
+def test_unrecognized_status_is_kept_as_unknown(
+    live: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    items = [{"title": "No status", "url": "https://a.fi/1"}]
+    monkeypatch.setattr(exa_client, "deep_search", lambda *args: _deep_response(items, [items[0]["url"]]))
+
+    found = jobs.search_jobs("", "toive", [])
+
+    assert found[0].status == "unknown"
 
 
 def test_search_skips_same_job_on_another_site(
