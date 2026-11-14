@@ -1,4 +1,4 @@
-"""API smoke tests using the deterministic scaffold response."""
+"""API smoke tests using the deterministic stub response."""
 
 from fastapi.testclient import TestClient
 
@@ -13,12 +13,24 @@ def test_health() -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_claim_returns_response_schema() -> None:
-    response = client.post("/claim", json={"description": "My flight was delayed."})
+def test_search_returns_response_schema() -> None:
+    response = client.post("/jobs/search", json={"area": "Tampere", "wish": "toimistotyö"})
     assert response.status_code == 200
-    payload = response.json()
-    assert set(payload) == {"answer", "sources", "draft_letter"}
-    assert payload["answer"]
-    assert payload["draft_letter"]
-    assert payload["sources"]
-    assert set(payload["sources"][0]) == {"title", "url", "quote"}
+    jobs = response.json()["jobs"]
+    assert jobs
+    assert set(jobs[0]) == {
+        "title", "employer", "location", "url", "deadline", "summary", "why"
+    }
+
+
+def test_search_requires_wish() -> None:
+    assert client.post("/jobs/search", json={"area": "Tampere", "wish": ""}).status_code == 422
+
+
+def test_similar_returns_response_schema() -> None:
+    response = client.post("/jobs/similar", json={
+        "wish": "toimistotyö",
+        "job": {"title": "A", "url": "https://example.com/job/1", "summary": "s"},
+    })
+    assert response.status_code == 200
+    assert "jobs" in response.json()

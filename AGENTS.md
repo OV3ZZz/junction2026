@@ -1,13 +1,13 @@
-# Reklama project guide
+# Project guide
 
 ## Project summary
-Reklama helps consumers research potential compensation for delayed flights, defective products, and incorrect invoices. The user describes a problem; the agent researches it and prepares a complaint letter for the user to review. The app never sends a letter.
+A job search for the Junction 2026 Exa challenge. The user writes an area and a vague wish ("good with Excel and people, no sales"); the app finds job ads that are open right now, shows three at a time, lets the user reject them (optionally saying why), find similar ads, and save ads to a sidebar. The app never applies for jobs.
 
 ## Architecture
-Frontend (Vite, React, TypeScript) -> FastAPI backend -> agent loop <-> Gemini (via its OpenAI-compatible endpoint) and Exa -> draft builder -> frontend approval. The agent may call `search_web` backed by Exa, read results, and repeat for up to `MAX_ROUNDS = 5`. All source URLs must come from Exa results; the model must not invent links. The initial scaffold uses deterministic stub data so the full API contract works without credentials.
+Frontend (Vite, React, TypeScript) -> FastAPI backend -> Exa deep search with an output schema. There is no LLM call of our own: Exa expands the raw wish itself. All job URLs must come from Exa results; anything else is dropped. Without `EXA_API_KEY` the backend returns stub data so the full API contract works. See `docs/ARCHITECTURE.md`.
 
 ## Commands
-- Backend install: `cd backend; uv sync` (or create `.venv` and use `pip install -e ".[dev]"` if uv is unavailable)
+- Backend install: `cd backend; uv sync --extra dev` (use `--python 3.12` if the default Python is newer than 3.13)
 - Backend run: `cd backend; uv run uvicorn app.main:app --reload`
 - Frontend install: `cd frontend; npm install`
 - Frontend run: `cd frontend; npm run dev`
@@ -17,16 +17,16 @@ Frontend (Vite, React, TypeScript) -> FastAPI backend -> agent loop <-> Gemini (
 
 ## Conventions
 - Add type hints to Python code and keep functions small.
-- Keep business logic out of `app/main.py`.
+- Keep business logic out of `app/main.py` (it lives in `app/jobs.py`; Exa calls in `app/exa_client.py`).
 - Define API request and response shapes only in `app/schemas.py`.
-- Keep the frontend aligned with the schema response shape.
+- Keep the frontend types aligned with the schema response shape.
 
 ## Hard rules
 - Never commit secrets or `.env`; never hardcode API keys.
-- Sources and source URLs must come only from Exa results.
-- The app must never send complaint letters itself; the user approves and sends them.
-- The UI must always show a “not legal advice” notice.
-- No auth, database, or extra frameworks without a project decision.
+- Job ads and their URLs must come only from Exa results.
+- The app never applies for jobs or contacts employers on the user's behalf.
+- The UI must always tell the user to check details and deadlines from the original ad.
+- No auth, database, or extra frameworks without a project decision. The app runs locally.
 
 ## Git workflow
 - Use feature branches and small, clear commits.
