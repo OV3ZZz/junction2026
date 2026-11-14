@@ -9,7 +9,7 @@ TEMPLATE = (
     "Ystävällisin terveisin,\n[Nimesi]"
 )
 
-DRAFT_PROMPT = """Write a short, polite but firm complaint letter that the consumer can send \
+DRAFT_PROMPT = """Write a short (at most about 150 words), polite but firm complaint letter that the consumer can send \
 to the company. Use the same language as the consumer's description. Base the demands only on \
 the research summary. Use placeholders in square brackets for anything unknown, such as \
 [Nimesi], [Varausnumero] or [Päivämäärä]. Return only the letter text."""

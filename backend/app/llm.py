@@ -4,7 +4,12 @@ from typing import Any
 
 from openai import OpenAI
 
-from .config import GEMINI_BASE_URL, get_gemini_key, get_gemini_model
+from .config import (
+    GEMINI_BASE_URL,
+    get_gemini_key,
+    get_gemini_model,
+    get_gemini_reasoning_effort,
+)
 
 
 def chat(
@@ -15,6 +20,9 @@ def chat(
     """Send the conversation to Gemini and return the assistant message."""
     client = OpenAI(api_key=get_gemini_key(), base_url=GEMINI_BASE_URL)
     options: dict[str, Any] = {}
+    reasoning_effort = get_gemini_reasoning_effort()
+    if reasoning_effort:
+        options["reasoning_effort"] = reasoning_effort
     if tools:
         options["tools"] = tools
     if tool_choice:

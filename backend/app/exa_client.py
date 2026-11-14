@@ -7,7 +7,7 @@ from exa_py import Exa
 from .config import get_exa_key
 from .schemas import Source
 
-NUM_RESULTS = 2
+NUM_RESULTS = 5
 QUOTE_MAX_CHARS = 600
 
 _STUB_SOURCES = [

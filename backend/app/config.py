@@ -27,6 +27,16 @@ def get_gemini_model() -> str:
     return os.getenv("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL
 
 
+# "low" thinking roughly halves response time compared to the model default.
+DEFAULT_GEMINI_REASONING_EFFORT = "low"
+
+
+def get_gemini_reasoning_effort() -> str | None:
+    """Return the Gemini thinking level ("low", "medium", "high"), or None for the default."""
+    value = os.getenv("GEMINI_REASONING_EFFORT", DEFAULT_GEMINI_REASONING_EFFORT)
+    return value or None
+
+
 DEFAULT_ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
 DEFAULT_MAX_CLAIMS_PER_HOUR = 60
 

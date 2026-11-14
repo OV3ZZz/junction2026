@@ -10,7 +10,7 @@ from .exa_client import search_web
 from .llm import chat
 from .schemas import ClaimResponse, Source
 
-MAX_ROUNDS = 5
+MAX_ROUNDS = 2
 
 SYSTEM_PROMPT = """You are Reklama, an assistant that helps consumers in Finland and the EU \
 work out whether they may be entitled to compensation (delayed or cancelled flights, defective \
@@ -25,7 +25,7 @@ once you have enough to answer.
 or URLs; only cite ids you have actually received.
 
 Final answer (when you stop calling tools):
-- Write in the same language as the user (usually Finnish), briefly and concretely.
+- Write in the same language as the user (usually Finnish), briefly and concretely: \nat most about 150 words, short paragraphs or a few bullet points.
 - Say what the user is likely entitled to (with amounts if the law gives them), what \
 information is still missing, and the next steps.
 - Remind the user that this is not legal advice."""
