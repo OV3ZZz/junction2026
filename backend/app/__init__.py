@@ -1,1 +1,1 @@
-"""Reklama API application package."""
+"""Job search API application package."""
