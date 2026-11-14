@@ -12,15 +12,6 @@ class JobSearchRequest(BaseModel):
     feedback: str | None = None
 
 
-class SimilarJobsRequest(BaseModel):
-    """Find more ads like a job the user liked, still respecting the original wish."""
-
-    area: str = ""
-    wish: str = Field(min_length=1)
-    job: "Job"
-    exclude_urls: list[str] = Field(default_factory=list)
-
-
 class Job(BaseModel):
     """One job ad found by Exa. The url always comes from an Exa result."""
 
@@ -38,5 +29,3 @@ class JobSearchResponse(BaseModel):
 
     jobs: list[Job]
 
-
-SimilarJobsRequest.model_rebuild()

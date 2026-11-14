@@ -26,11 +26,3 @@ def test_search_returns_response_schema() -> None:
 def test_search_requires_wish() -> None:
     assert client.post("/jobs/search", json={"area": "Tampere", "wish": ""}).status_code == 422
 
-
-def test_similar_returns_response_schema() -> None:
-    response = client.post("/jobs/similar", json={
-        "wish": "toimistotyö",
-        "job": {"title": "A", "url": "https://example.com/job/1", "summary": "s"},
-    })
-    assert response.status_code == 200
-    assert "jobs" in response.json()

@@ -57,22 +57,6 @@ def test_search_handles_json_string_output(live: None, monkeypatch: pytest.Monke
     assert [job.title for job in jobs.search_jobs("", "toive", [])] == ["A"]
 
 
-def test_similar_keeps_wish_and_skips_liked(live: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[str] = []
-
-    def fake_search(query: str, *args: object) -> SimpleNamespace:
-        calls.append(query)
-        return _deep_response([], ["https://a.fi/1", "https://b.fi/2"])
-
-    monkeypatch.setattr(exa_client, "deep_search", fake_search)
-    liked = jobs.Job(title="Hankinta-assistentti", url="https://a.fi/1", summary="Kilpailutus")
-
-    found = jobs.similar_jobs("Tampere", "ei myyntiä", liked, exclude_urls=[])
-
-    assert [job.url for job in found] == ["https://b.fi/2"]
-    assert "ei myyntiä" in calls[0] and "Hankinta-assistentti" in calls[0]
-
-
 def test_search_tops_up_from_plain_results(live: None, monkeypatch: pytest.MonkeyPatch) -> None:
     urls = ["https://a.fi/1", "https://linkedin.com/in/someone", "https://b.fi/2", "https://c.fi/3"]
     response = _deep_response([{"title": "A", "url": "https://a.fi/1"}], urls)

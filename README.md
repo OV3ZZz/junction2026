@@ -1,6 +1,6 @@
 # Junction 2026 — Exa-powered job search
 
-Describe in your own words what you are good at and what kind of work you want. The app finds job ads that are open right now, across job boards and employers' own careers pages, three at a time. Reject a batch (and optionally say why), ask for more ads like one you liked, and save interesting ads to a sidebar.
+Describe in your own words what you are good at and what kind of work you want. The app finds job ads that are open right now, across job boards and employers' own careers pages, three at a time. Reject a batch (and optionally say why), and save interesting ads to a sidebar.
 
 Built for the Exa challenge ("The Internet Butler"). The search runs on Exa deep search with a structured output schema; see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the flow and the benchmark behind that choice.
 

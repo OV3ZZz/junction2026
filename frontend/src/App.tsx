@@ -99,10 +99,6 @@ export default function App() {
     run(() => post("/jobs/search", { area, wish: wish.trim(), exclude_urls: seen, feedback: note }), seen);
   }
 
-  function moreLike(job: Job) {
-    run(() => post("/jobs/similar", { area, wish: wish.trim(), job, exclude_urls: seen }), seen);
-  }
-
   const isSaved = (job: Job) => saved.some((item) => item.url === job.url);
   const toggleSave = (job: Job) =>
     setSaved((items) => (isSaved(job) ? items.filter((item) => item.url !== job.url) : [job, ...items]));
@@ -169,7 +165,6 @@ export default function App() {
                     <button className="secondary-button" type="button" onClick={() => toggleSave(job)}>
                       {isSaved(job) ? "✓ Tallennettu" : "☆ Tallenna"}
                     </button>
-                    <button className="secondary-button" type="button" onClick={() => moreLike(job)}>Lisää tällaisia</button>
                   </div>
                 </article>
               ))}

@@ -8,7 +8,6 @@ The app is a job search for people who can describe what they want but not which
 flowchart LR
     U[User] -->|area + wish| F[React frontend]
     F -->|POST /jobs/search| B[FastAPI backend]
-    F -->|POST /jobs/similar| B
     B -->|deep search + output_schema| E[Exa API]
     E -->|results + structured jobs| B
     B -->|validated jobs| F
@@ -16,7 +15,6 @@ flowchart LR
 ```
 
 - `/jobs/search`: Exa deep search with a 21-day freshness filter, highlights and an output schema (title, employer, location, url, deadline, summary, why). No separate LLM call.
-- `/jobs/similar`: the same deep search, with the liked ad (title and summary) added to the original wish. Exa `findSimilar` was tried first but matched page layout (same recruiter, same job board) rather than the job itself.
 - Every returned URL must be one of Exa's own results; anything else is dropped. Ads the user has already seen (`exclude_urls`) are dropped too.
 - Rejecting a batch with feedback ("too far away") sends the feedback with the next search.
 - Saved ads live in the browser's `localStorage`; there is no database.

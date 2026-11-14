@@ -5,7 +5,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+# override=True: the local .env wins over stale values already in the shell, e.g. an old key
+# that VS Code injected into the terminal ("python.terminal.useEnvFile"). On Render there is
+# no .env file, so the host's environment variables are used as is.
+load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=True)
 
 DEFAULT_ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
 DEFAULT_MAX_SEARCHES_PER_HOUR = 120

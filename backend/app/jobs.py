@@ -99,12 +99,6 @@ def _candidates(query: str) -> tuple[list[Job], list[Job]]:
     return structured, extra
 
 
-def similar_jobs(area: str, wish: str, liked: Job, exclude_urls: list[str]) -> list[Job]:
-    """Return ads like one the user liked, still respecting their original wish."""
-    note = f"Etsi lisää tämän kaltaisia: {liked.title}. {liked.summary}"
-    return search_jobs(area, wish, exclude_urls + [liked.url], note)
-
-
 def _output_jobs(response: Any) -> list[dict[str, Any]]:
     """Read the structured jobs list from Exa's deep search output."""
     content = response.output.content if response.output else None
