@@ -30,11 +30,11 @@ const copy = {
     area: "Hakukohde", areaPlaceholder: "Kaupunki tai alue", wishLabel: "Kerro osaamisestasi ja toiveistasi",
     wishPlaceholder: "Esim. taidot, työajat tai mitä haluat välttää",
     privacy: "Älä lisää henkilötietoja.", search: "Etsi työpaikkoja", searching: "Haetaan…", suggestions: "Työpaikat",
-    noResults: "En tunnistanut hakutoivetta tai uusia sopivia ilmoituksia ei löytynyt. Kuvaile taitojasi tai toiveitasi uudelleen.", deadline: "Haku päättyy", unknownDeadline: "Tarkista hakuaika",
+    noResults: "En tunnistanut hakutoivetta tai uusia sopivia ilmoituksia ei löytynyt. Kuvaile taitojasi tai toiveitasi uudelleen.", noMoreResults: "Ei enempää hakutuloksia", deadline: "Haku päättyy", unknownDeadline: "Tarkista hakuaika",
     why: "Miksi sinulle:", saved: "Tallennettu", save: "Tallenna", feedbackLabel: "Mitä haluat muuttaa haussa?",
     feedbackPlaceholder: "Tarkenna hakua (valinnainen)", next: "Näytä kolme uutta",
     savedTitle: "Tallennetut työpaikat", emptySaved: "Ei tallennettuja työpaikkoja.", remove: "Poista",
-    legal: "Tarkista tiedot ja hakuajat aina alkuperäisestä ilmoituksesta. WorkHunter ei hae työpaikkoja puolestasi.",
+    legal: "Tarkista tiedot ja hakuajat aina alkuperäisestä ilmoituksesta.",
     connectionError: "Palvelimeen ei saatu yhteyttä.", searchError: "Haku epäonnistui. Yritä hetken kuluttua uudelleen.",
   },
   en: {
@@ -43,11 +43,11 @@ const copy = {
     area: "Location", areaPlaceholder: "City or region", wishLabel: "Tell us about your skills and preferences",
     wishPlaceholder: "E.g. skills, hours, or what you want to avoid",
     privacy: "Don’t include personal information.", search: "Find jobs", searching: "Searching…", suggestions: "Jobs",
-    noResults: "I couldn’t understand the search or find matching jobs. Try describing your skills or preferences another way.", deadline: "Apply by", unknownDeadline: "Check the deadline",
+    noResults: "I couldn’t understand the search or find matching jobs. Try describing your skills or preferences another way.", noMoreResults: "No more search results", deadline: "Apply by", unknownDeadline: "Check the deadline",
     why: "Why it may suit you:", saved: "Saved", save: "Save", feedbackLabel: "What would you change?",
     feedbackPlaceholder: "Refine your search (optional)", next: "Show three more",
     savedTitle: "Saved jobs", emptySaved: "No saved jobs.", remove: "Remove",
-    legal: "Check details and deadlines on the original listing. WorkHunter never applies for jobs on your behalf.",
+    legal: "Check details and deadlines on the original listing.",
     connectionError: "Could not connect to the server.", searchError: "Search failed. Please try again in a moment.",
   },
 } as const;
@@ -247,7 +247,7 @@ export default function App() {
               <h2>{t.suggestions}</h2>
               <span>{shown.length}</span>
             </div>
-            {shown.length === 0 && <p className="empty">{t.noResults}</p>}
+            {shown.length === 0 && <p className="empty">{seen.length > 0 ? t.noMoreResults : t.noResults}</p>}
             {shown.length > 0 && (
               <div className="results-list" tabIndex={0} aria-label={t.suggestions}>
               {shown.map((job, index) => (
@@ -275,7 +275,7 @@ export default function App() {
             <div className="next-box">
               <input aria-label={t.feedbackLabel} value={feedback} onChange={(e) => setFeedback(e.target.value)}
                 placeholder={t.feedbackPlaceholder} />
-              <button className="primary-button" type="button" onClick={nextThree}>{t.next}</button>
+              <button className="primary-button" type="button" onClick={nextThree} disabled={loading || shown.length === 0}>{t.next}</button>
             </div>
           </section>
         )}
